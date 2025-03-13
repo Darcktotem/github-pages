@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Diario - Restaurantes</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Librerías para generar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px; /* Aumentamos para mejor vista en 1920x1080 */
+            margin-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .transbank-box {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        /* Resaltar elementos importantes */
+        .resaltado {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        .resaltado-total {
+            color: #0d6efd; /* azul bootstrap */
+        }
+        .resaltado-saldo {
+            color: #dc3545; /* rojo bootstrap */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Reporte Bravo Cabrera</h2>
+
+        <!-- Fila principal: Col 1 (TOTAlES) + Col 2 (Comentarios) -->
+        <div class="row">
+            <!-- Columna Izquierda (TOTAlES, luego ventas/efectivo, luego promos) -->
+            <div class="col-md-8">
+                <!-- Card TOTAlES -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Totales</h5>
+                        <div class="d-flex flex-wrap align-items-end mb-3">
+                            <!-- Responsable (Obligatorio) -->
+                            <div class="me-3 mb-2">
+                                <label for="responsable" class="form-label"><strong>Responsable:</strong></label>
+                                <input type="text" id="responsable" class="form-control" placeholder="Nombre encargado" required>
+                            </div>
+                            <!-- Fecha (Obligatorio) -->
+                            <div class="me-3 mb-2">
+                                <label for="fecha" class="form-label"><strong>Fecha:</strong></label>
+                                <input type="date" id="fecha" class="form-control" required>
+                            </div>
+                            <!-- Valor Dólar -->
+                            <div class="me-3 mb-2">
+                                <label for="valor_dolar" class="form-label"><strong>Valor Dólar:</strong></label>
+                                <input type="text" id="valor_dolar" class="form-control w-auto" placeholder="Ej: 850" oninput="formatNumberInput(this);">
+                            </div>
+                            <!-- Fondo de Caja -->
+                            <div class="me-3 mb-2">
+                                <label for="fondo_caja_input" class="form-label"><strong>Fondo de Caja ($):</strong></label>
+                                <input type="text" id="fondo_caja_input" class="form-control" value="250000" oninput="formatNumberInput(this); actualizarCaja()">
+                            </div>
+                        </div>
+
+                        <!-- Resaltamos Venta Total y Saldo Final -->
+                        <p class="mt-2 resaltado resaltado-total">
+                            <span>Venta Total: </span>
+                            <span id="venta_total">$0</span>
+                        </p>
+
+                        <p><strong>Total Propinas Transbank:</strong> <span id="total_propinas">$0</span></p>
+
+                        <p class="resaltado resaltado-saldo">
+                            <span>Saldo Final en Caja: </span>
+                            <span id="saldo_caja">$250,000</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Nueva fila: VENTAS (col-md-6) y EFECTIVO (col-md-6) uno al lado del otro -->
+                <div class="row">
+                    <!-- Card VENTAS -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Ventas</h5>
+                                <label for="venta_club">Venta Club ($):</label>
+                                <input type="text" id="venta_club" class="form-control" oninput="formatNumberInput(this); actualizarTotales()">
+                                <label for="venta_boliche" class="mt-2">Venta Boliche ($):</label>
+                                <input type="text" id="venta_boliche" class="form-control" oninput="formatNumberInput(this); actualizarTotales()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card EFECTIVO y OTROS -->
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Efectivo y Otros</h5>
+                                <label for="efectivo">Efectivo ($):</label>
+                                <input type="text" id="efectivo" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                                <label for="dolares" class="mt-2">Dólares ($):</label>
+                                <input type="text" id="dolares" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                                <label for="consumo_interno" class="mt-2">Consumo Interno ($):</label>
+                                <input type="text" id="consumo_interno" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                                <label for="retiros" class="mt-2">Retiros/Egresos ($):</label>
+                                <input type="text" id="retiros" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card PROMOCIONES Y CAMPAÑAS -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Promociones y Campañas</h5>
+                        <p>Registra aquí los descuentos aplicados por promociones o campañas especiales (ej.: día del melón con vino, día de la mujer, etc.) para medir su efectividad.</p>
+                        <label for="nombre_promocion" class="mt-2">Nombre de la Promoción/Campaña:</label>
+                        <input type="text" id="nombre_promocion" class="form-control" placeholder="Ej.: Promoción Día de la Mujer">
+
+                        <label for="descuento_promo" class="mt-2">Descuento Total ($):</label>
+                        <input type="text" id="descuento_promo" class="form-control" oninput="formatNumberInput(this); actualizarCaja()" placeholder="Ej.: 50000">
+
+                        <p class="mt-2"><strong>Proporción en la Venta Total:</strong> <span id="proporcion_promo">0%</span></p>
+
+                        <label for="obs_promocion" class="mt-2">Observaciones:</label>
+                        <textarea id="obs_promocion" class="form-control" rows="3" placeholder="Ej.: Detalles de la campaña, resultados, etc."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Columna derecha para Comentarios -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Comentarios</h5>
+                        <textarea id="comentarios" class="form-control" rows="27" placeholder="Agrega comentarios adicionales..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección de Formas de Pago: Transbank -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Formas de Pago (Transbank)</h5>
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 transbank-box">
+                        <h6>Transbank 1</h6>
+                        <label>Crédito:</label>
+                        <input type="text" id="transbank1_credito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Débito:</label>
+                        <input type="text" id="transbank1_debito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Prepago:</label>
+                        <input type="text" id="transbank1_prepago" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Propina:</label>
+                        <input type="text" id="transbank1_propina" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                    </div>
+                    <div class="col-lg-3 col-md-6 transbank-box">
+                        <h6>Transbank 2</h6>
+                        <label>Crédito:</label>
+                        <input type="text" id="transbank2_credito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Débito:</label>
+                        <input type="text" id="transbank2_debito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Prepago:</label>
+                        <input type="text" id="transbank2_prepago" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Propina:</label>
+                        <input type="text" id="transbank2_propina" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                    </div>
+                    <div class="col-lg-3 col-md-6 transbank-box">
+                        <h6>Transbank 3</h6>
+                        <label>Crédito:</label>
+                        <input type="text" id="transbank3_credito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Débito:</label>
+                        <input type="text" id="transbank3_debito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Prepago:</label>
+                        <input type="text" id="transbank3_prepago" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Propina:</label>
+                        <input type="text" id="transbank3_propina" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                    </div>
+                    <div class="col-lg-3 col-md-6 transbank-box">
+                        <h6>Transbank 4</h6>
+                        <label>Crédito:</label>
+                        <input type="text" id="transbank4_credito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Débito:</label>
+                        <input type="text" id="transbank4_debito" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Prepago:</label>
+                        <input type="text" id="transbank4_prepago" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                        <label>Propina:</label>
+                        <input type="text" id="transbank4_propina" class="form-control" oninput="formatNumberInput(this); actualizarCaja()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón para Exportar a PDF -->
+        <button class="btn btn-danger w-100 mt-3" onclick="exportarPDF()">Exportar a PDF</button>
+
+        <script>
+            // Formatear input para miles con . y remover caracteres que no sean dígitos
+            function formatNumberInput(el) {
+                // Eliminamos todo lo que no sea dígito
+                let val = el.value.replace(/\D/g, "");
+                let num = parseInt(val) || 0;
+
+                if (num === 0) {
+                    // Si es 0, dejamos el input vacío
+                    el.value = "";
+                } else {
+                    // Convertir a locale string con separador de miles
+                    el.value = num.toLocaleString("es-ES");
+                }
+            }
+
+            // Función para parsear texto con puntos a número entero
+            function parseNumber(str) {
+                // Removemos todo lo que no sea dígito
+                return parseInt(str.replace(/\D/g, "")) || 0;
+            }
+
+            // Actualiza la venta total al ingresar ventas Club y Boliche
+            function actualizarTotales() {
+                let club = parseNumber(document.getElementById("venta_club").value);
+                let boliche = parseNumber(document.getElementById("venta_boliche").value);
+                let total = club + boliche;
+                document.getElementById("venta_total").innerText = `$${total.toLocaleString("es-ES")}`;
+                actualizarCaja();
+            }
+
+            // Actualiza el saldo final en caja, total de propinas y proporcion de promo
+            function actualizarCaja() {
+                // Obtener la venta total como número
+                let ventaTotal = parseNumber(document.getElementById("venta_total").innerText);
+
+                // Sumar todas las propinas
+                let propinasIds = ["transbank1_propina", "transbank2_propina", "transbank3_propina", "transbank4_propina"];
+                let propinas = propinasIds.reduce((acc, id) => acc + parseNumber(document.getElementById(id).value), 0);
+                document.getElementById("total_propinas").innerText = `$${propinas.toLocaleString("es-ES")}`;
+
+                // Sumar todos los pagos NO incluyendo propinas
+                let transbankIds = ["transbank1_credito", "transbank1_debito", "transbank1_prepago",
+                                    "transbank2_credito", "transbank2_debito", "transbank2_prepago",
+                                    "transbank3_credito", "transbank3_debito", "transbank3_prepago",
+                                    "transbank4_credito", "transbank4_debito", "transbank4_prepago"];
+                let transbankSinPropinas = transbankIds.reduce((acc, id) => acc + parseNumber(document.getElementById(id).value), 0);
+
+                let efectivo = parseNumber(document.getElementById("efectivo").value);
+                let dolares = parseNumber(document.getElementById("dolares").value);
+                let consumo = parseNumber(document.getElementById("consumo_interno").value);
+                let egresos = parseNumber(document.getElementById("retiros").value);
+
+                // Leer Fondo de Caja ingresado manualmente
+                let fondoCaja = parseNumber(document.getElementById("fondo_caja_input").value);
+
+                // Calculo: saldoFinal = ventaTotal - (transbankSinPropinas + efectivo + dolares + consumo + egresos + fondoCaja)
+                let saldoFinal = ventaTotal - (transbankSinPropinas + efectivo + dolares + consumo + egresos + fondoCaja);
+                document.getElementById("saldo_caja").innerText = `$${saldoFinal.toLocaleString("es-ES")}`;
+
+                // Calcular la proporcion de descuento de Promocion/Campaña
+                let descuentoPromo = parseNumber(document.getElementById("descuento_promo").value);
+                let proporcionPromo = 0;
+                if (ventaTotal > 0) {
+                    proporcionPromo = ((descuentoPromo / ventaTotal) * 100).toFixed(2);
+                }
+                document.getElementById("proporcion_promo").innerText = `${proporcionPromo}%`;
+            }
+
+            // Exportar a PDF en multiples paginas para que no se vea pequeño
+            function exportarPDF() {
+                // Validar si el responsable y fecha fueron ingresados
+                let responsable = document.getElementById("responsable").value.trim();
+                let fechaVal = document.getElementById("fecha").value;
+                if (!responsable || !fechaVal) {
+                    alert("Por favor, ingresa el Responsable y la Fecha antes de exportar.");
+                    return;
+                }
+
+                window.scrollTo(0, 0);
+                html2canvas(document.documentElement, {
+                    scale: 2, // aumenta la resolución
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: document.documentElement.scrollWidth,
+                    windowHeight: document.documentElement.scrollHeight
+                }).then(canvas => {
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF("p", "pt", "a4");
+
+                    // Obtenemos la fecha para el nombre del archivo
+                    const fechaValue = document.getElementById("fecha").value;
+                    const fechaReporte = fechaValue ? fechaValue : "SinFecha";
+
+                    const pdfWidth = pdf.internal.pageSize.getWidth();  // Ancho de página PDF
+                    const pdfHeight = pdf.internal.pageSize.getHeight(); // Alto de página PDF
+
+                    // Convertimos todo el documento a dataURL de imagen
+                    const imgData = canvas.toDataURL("image/png");
+
+                    // Calculamos alto de la imagen si ajustamos al ancho de PDF
+                    const imgWidth = pdfWidth;
+                    const imgHeight = canvas.height * pdfWidth / canvas.width;
+
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    // Agregamos la primera página
+                    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                    heightLeft -= pdfHeight;
+
+                    // Si queda contenido, agregamos mas páginas
+                    while (heightLeft > 0) {
+                        position = -imgHeight + heightLeft;
+                        pdf.addPage();
+                        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                        heightLeft -= pdfHeight;
+                    }
+
+                    pdf.save(`Reporte_${fechaReporte}.pdf`);
+                });
+            }
+        </script>
+    </div>
+</body>
+</html>
